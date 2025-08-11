@@ -22,38 +22,32 @@
 # THE SOFTWARE.
 
 -include ../../.config.mk
-include ../Rules.mk
 
-VFLAGS=-Wno-fatal --pins-bv 2
+# VCS setup
+VCS ?= vcs2018-mx
+VCS_FLAGS ?= -full64 -sverilog -sysc
 
-CPPFLAGS += -I $(VOBJ_DIR)
-CPPFLAGS += -I $(VERILATOR_ROOT)/include
+# SystemC locations
+SYSTEMC ?= /usr/local/systemc-2.3.2/
+SYSTEMC_INCLUDE ?= $(SYSTEMC)/include
+SYSTEMC_LIBDIR ?= $(SYSTEMC)/lib-linux64
 
-CPPFLAGS += -I ../../ -I ../ -I .
-CXXFLAGS += -Wall -O3 -g
+# Compiler and linker flags
+CPPFLAGS += -I$(SYSTEMC_INCLUDE) -I ../../ -I ../ -I .
+LDFLAGS += -L$(SYSTEMC_LIBDIR) -Wl,-rpath,$(SYSTEMC_LIBDIR)
+LDLIBS += -lsystemc -pthread
 
-AXIFULL_DEV_V += axifull_dev.v
-AXIFULL_DEV_H += $(VOBJ_DIR)/Vaxifull_dev.h
-AXIFULL_DEV_LIB += $(VOBJ_DIR)/Vaxifull_dev__ALL.a
-EXAMPLE_RTL_AXI4_OBJS += example-rtl-axi4.o $(VERILATED_O)
-ALL_OBJS += $(OBJS_COMMON) $(EXAMPLE_RTL_AXI4_OBJS)
+SRC_V += axifull_dev.v axifull_dev_S00_AXI.v
+SRC_CPP += example-rtl-axi4.cc
 
-TARGETS += example-rtl-axi4
+TARGETS += simv
 
 ################################################################################
 
 all: $(TARGETS)
 
-## Dep generation ##
--include $(ALL_OBJS:.o=.d)
-
-$(EXAMPLE_RTL_AXI4_OBJS): $(AXIFULL_DEV_H)
-
-example-rtl-axi4: $(EXAMPLE_RTL_AXI4_OBJS) $(AXIFULL_DEV_LIB) $(OBJS_COMMON)
-	$(LINK.cc) $^ $(LDLIBS) -o $@
+simv: $(SRC_V) $(SRC_CPP)
+	$(VCS) $(VCS_FLAGS) -CFLAGS "$(CPPFLAGS)" -LDFLAGS "$(LDFLAGS)" $(SRC_V) $(SRC_CPP) -o $@ $(LDLIBS)
 
 clean:
-	$(RM) $(ALL_OBJS) $(ALL_OBJS:.o=.d)
-	$(RM) $(TARGETS:=.vcd)
-	$(RM) -r $(VOBJ_DIR)
-	$(RM) $(TARGETS)
+	$(RM) -r csrc simv.daidir ucli.key $(TARGETS)
